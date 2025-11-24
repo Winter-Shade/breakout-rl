@@ -1,8 +1,3 @@
-"""
-FIXED CNN Training - No Atari Wrappers, Headless Compatible
-
-Keywords: headless training, custom environment, no display, server training
-"""
 import os
 import torch as th
 from stable_baselines3 import PPO
@@ -10,7 +5,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecTran
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback, CallbackList
 from stable_baselines3.common.monitor import Monitor
 
-# Set headless mode for pygame (CRITICAL for servers)
+# Set headless mode for pygame 
 os.environ['SDL_VIDEODRIVER'] = 'dummy'
 
 from breakout_env_cnn import BreakoutEnv
@@ -18,8 +13,7 @@ from breakout_env_cnn import BreakoutEnv
 
 def make_env():
     """
-    Create environment WITHOUT Atari wrappers
-    (Our custom environment doesn't need them)
+    Create environment
     """
     env = BreakoutEnv()
     env = Monitor(env)
@@ -29,13 +23,6 @@ def make_env():
 if __name__ == "__main__":
     print("=" * 80)
     print("FIXED CNN TRAINING - HEADLESS & CUSTOM ENV COMPATIBLE")
-    print("=" * 80)
-    print("\nFixes Applied:")
-    print("  ✓ SDL_VIDEODRIVER=dummy - Headless pygame rendering")
-    print("  ✓ Removed Atari wrappers - Not needed for custom env")
-    print("  ✓ VecNormalize - Reward normalization")
-    print("  ✓ Lower learning rate - Stable updates")
-    print("  ✓ Larger batches - Better gradients")
     print("=" * 80)
     
     # Create vectorized environment
@@ -47,12 +34,12 @@ if __name__ == "__main__":
     # Transpose for PyTorch: (H,W,C) -> (C,H,W)
     env = VecTransposeImage(env)
     
-    # ⭐ CRITICAL: Reward normalization
+    # Reward normalization
     env = VecNormalize(
         env,
         training=True,
-        norm_obs=False,  # Don't normalize images (already 0-255)
-        norm_reward=True,  # NORMALIZE REWARDS (critical!)
+        norm_obs=False,  # Don't normalize images
+        norm_reward=True,  # NORMALIZE REWARDS
         clip_obs=10.0,
         clip_reward=10.0,
         gamma=0.99,
@@ -103,16 +90,16 @@ if __name__ == "__main__":
 
     callback = CallbackList([checkpoint_callback, eval_callback])
 
-    # ⭐ STABLE CNN CONFIGURATION
+    # STABLE CNN CONFIGURATION
     model = PPO(
         "CnnPolicy",
         env,
         verbose=1,
         
-        # Learning rate - REDUCED for stability
+        # Learning rate 
         learning_rate=1e-4,
         
-        # Buffer and batch - INCREASED for stability
+        # Buffer and batch
         n_steps=512,
         batch_size=512,
         
@@ -128,7 +115,7 @@ if __name__ == "__main__":
         # Value function
         vf_coef=0.5,
         
-        # Gradient clipping - STRICT
+        # Gradient clipping 
         max_grad_norm=0.5,
         
         # CNN architecture
@@ -143,36 +130,6 @@ if __name__ == "__main__":
         seed=42,
     )
 
-    print("\n" + "=" * 80)
-    print("TRAINING CONFIGURATION")
-    print("=" * 80)
-    print(f"Device:            {model.device}")
-    print(f"Learning Rate:     1e-4 (reduced)")
-    print(f"Batch Size:        512 (increased)")
-    print(f"Buffer Size:       512 steps")
-    print(f"Reward Norm:       ✓ ENABLED")
-    print(f"Total Timesteps:   2,000,000")
-    print("=" * 80)
-    
-    print("\n" + "=" * 80)
-    print("TRAINING METRICS TO WATCH")
-    print("=" * 80)
-    print("Good signs:")
-    print("  - ep_rew_mean: Steadily increasing (20 → 50 → 100 → 200)")
-    print("  - value_loss: Decreasing (45 → 10 → 3)")
-    print("  - explained_variance: High and stable (0.7-0.9)")
-    print("\nBad signs (if you see these, STOP):")
-    print("  - ep_rew_mean: Decreasing (collapse!)")
-    print("  - value_loss: Exploding (>50)")
-    print("  - explained_variance: Dropping (<0.5)")
-    print("=" * 80)
-    
-    print("\n" + "=" * 80)
-    print("STARTING TRAINING")
-    print("=" * 80)
-    print("Monitor with: tensorboard --logdir ./tensorboard_cnn_stable/")
-    print("=" * 80)
-    print()
 
     # Train
     try:
@@ -207,31 +164,3 @@ if __name__ == "__main__":
         env.close()
         eval_env.close()
 
-
-# WHAT CHANGED FROM PREVIOUS VERSION:
-#
-# 1. Added: os.environ['SDL_VIDEODRIVER'] = 'dummy'
-#    → Enables headless pygame (no display needed)
-#
-# 2. Removed: NoopResetEnv and MaxAndSkipEnv
-#    → These are Atari-specific wrappers
-#    → Our custom environment doesn't need them
-#    → They expect get_action_meanings() method
-#
-# 3. Added: Directory creation
-#    → Ensures all paths exist before training
-#
-# WHY ATARI WRAPPERS AREN'T NEEDED:
-#
-# NoopResetEnv: Adds random no-ops at episode start
-#   → Purpose: Reduce determinism in Atari games
-#   → Our env: Already has randomized starts (80% easy)
-#   → Not needed!
-#
-# MaxAndSkipEnv: Repeats actions for N frames, returns max
-#   → Purpose: Speed up Atari games, handle flickering sprites
-#   → Our env: Pygame doesn't flicker, already fast
-#   → Not needed!
-#
-# These wrappers are useful for REAL Atari ROMs, but our custom
-# environment already handles everything they provide.

@@ -24,7 +24,7 @@ PADDLE_SPEED = 10
 MAX_BALL_SPEED = 12
 MIN_BALL_SPEED = 4
 
-# CNN observation constants (STANDARD ATARI SIZE)
+# CNN observation constants 
 OBS_WIDTH = 84
 OBS_HEIGHT = 84
 
@@ -42,11 +42,9 @@ class BreakoutEnv(gym.Env):
         super().__init__()
         self.render_mode = render_mode
 
-        # ✅ GRAYSCALE observation space: 84x84x1 (OPTIMIZED)
-        # Shape is (H, W, C) where C=1 for grayscale
         self.observation_space = spaces.Box(
             low=0, high=255, 
-            shape=(OBS_HEIGHT, OBS_WIDTH, 1),  # ✅ 1 channel (grayscale)
+            shape=(OBS_HEIGHT, OBS_WIDTH, 1),  # 1 channel (grayscale)
             dtype=np.uint8
         )
 
@@ -139,8 +137,7 @@ class BreakoutEnv(gym.Env):
     def _get_obs(self):
         """
         Generate 84x84x1 GRAYSCALE observation
-        
-        This follows DeepMind's Atari preprocessing:
+
         1. Render game at native resolution
         2. Convert to grayscale
         3. Resize to 84x84
@@ -154,18 +151,16 @@ class BreakoutEnv(gym.Env):
         rgb_array = pygame.surfarray.array3d(self.game_surface)
         rgb_array = np.transpose(rgb_array, (1, 0, 2))  # (H, W, C)
 
-        # ✅ Convert RGB to GRAYSCALE
-        # Using luminosity method: 0.299*R + 0.587*G + 0.114*B
+        # Convert RGB to GRAYSCALE
         grayscale = cv2.cvtColor(rgb_array, cv2.COLOR_RGB2GRAY)
         
-        # Resize to 84x84 (standard Atari size)
+        # Resize to 84x84
         resized = cv2.resize(
             grayscale, 
             (OBS_WIDTH, OBS_HEIGHT), 
             interpolation=cv2.INTER_AREA
         )
 
-        # Add channel dimension: (H, W) -> (H, W, 1)
         obs = resized[:, :, np.newaxis]
 
         return obs.astype(np.uint8)
@@ -323,7 +318,6 @@ class BreakoutEnv(gym.Env):
 
         return self._get_obs(), reward, terminated, truncated, self._get_info()
 
-    # =================== RENDERING ===================
 
     def render(self):
         if self.render_mode == "human":
@@ -333,7 +327,7 @@ class BreakoutEnv(gym.Env):
         return None
 
     def _render_human(self):
-        """Render for human viewing (full color)"""
+        """Render for human viewing """
         import pygame
 
         if self.screen is None:
@@ -375,37 +369,3 @@ class BreakoutEnv(gym.Env):
             pygame.quit()
             self.screen = None
             self.clock = None
-
-
-# =================== WHY GRAYSCALE? ===================
-#
-# 1. MEMORY EFFICIENCY:
-#    - RGB: 84 × 84 × 3 × 4 frames = 84,672 values per observation
-#    - Grayscale: 84 × 84 × 1 × 4 frames = 28,224 values per observation
-#    → 3x less memory!
-#
-# 2. TRAINING SPEED:
-#    - Fewer input channels → fewer conv filter parameters
-#    - RGB CNN: ~3M parameters
-#    - Grayscale CNN: ~1M parameters
-#    → 3x faster training!
-#
-# 3. NO INFORMATION LOSS:
-#    - Breakout gameplay doesn't depend on color
-#    - Ball position, paddle position, brick positions all visible in grayscale
-#    - Motion from frame stacking works the same
-#
-# 4. STANDARD PRACTICE:
-#    - DeepMind's DQN paper (Nature 2015) uses grayscale
-#    - All Atari baselines use grayscale
-#    - Industry standard for Atari RL
-#
-# 5. BETTER GENERALIZATION:
-#    - Color can be distracting noise
-#    - Grayscale forces network to focus on shapes/positions
-#    - Often leads to better final performance
-#
-# When to use RGB instead?
-# - Games where color is gameplay-critical (e.g., color matching games)
-# - Real-world robotics with complex textures
-# - NOT for simple games like Breakout!
